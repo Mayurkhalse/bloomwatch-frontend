@@ -76,6 +76,44 @@ export const mockBloomEvents: BloomEvent[] = [
       { date: '2024-02-02', severity: 2, chlorophyll: 25.0 },
     ],
   },
+  {
+    id: '4',
+    coordinates: [32.0522, -116.2437],
+    severity: 'severe',
+    chlorophyll: 54.9,
+    affectedArea: 23.7,
+    date: '2024-01-18',
+    historicalTrends: [
+      { date: '2024-01-01', severity: 3, chlorophyll: 32.0 },
+      { date: '2024-01-06', severity: 4, chlorophyll: 45.0 },
+      { date: '2024-01-12', severity: 4, chlorophyll: 52.0 },
+      { date: '2024-01-18', severity: 5, chlorophyll: 58.9 },
+    ],
+    predictedTrends: [
+      { date: '2024-01-23', severity: 4, chlorophyll: 48.0 },
+      { date: '2024-01-28', severity: 3, chlorophyll: 35.0 },
+      { date: '2024-02-02', severity: 2, chlorophyll: 25.0 },
+    ],
+  },
+  {
+    id: '5',
+    coordinates: [32.22, -116.37],
+    severity: 'severe',
+    chlorophyll: 54.9,
+    affectedArea: 23.7,
+    date: '2024-01-18',
+    historicalTrends: [
+      { date: '2024-01-01', severity: 3, chlorophyll: 32.0 },
+      { date: '2024-01-06', severity: 4, chlorophyll: 45.0 },
+      { date: '2024-01-12', severity: 4, chlorophyll: 52.0 },
+      { date: '2024-01-18', severity: 5, chlorophyll: 58.9 },
+    ],
+    predictedTrends: [
+      { date: '2024-01-23', severity: 4, chlorophyll: 48.0 },
+      { date: '2024-01-28', severity: 3, chlorophyll: 35.0 },
+      { date: '2024-02-02', severity: 2, chlorophyll: 25.0 },
+    ],
+  }
 ];
 
 export const mockRegions: Region[] = [

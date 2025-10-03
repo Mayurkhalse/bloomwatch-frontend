@@ -1,19 +1,18 @@
 import React from 'react';
 import { Map, BarChart3, Settings, FileText, Download } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 interface SidebarProps {
   isOpen: boolean;
-  activeTab: string;
-  onTabChange: (tab: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeTab, onTabChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const menuItems = [
-    { id: 'map', label: 'Live Map', icon: Map },
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'exports', label: 'Exports', icon: Download },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { to: '/map', label: 'Live Map', icon: Map },
+    { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { to: '/reports', label: 'Reports', icon: FileText },
+    { to: '/exports', label: 'Exports', icon: Download },
+    { to: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -23,18 +22,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeTab, onTabChange }) => 
       <div className="p-6">
         <nav className="space-y-2">
           {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
-                activeTab === item.id
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => `w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all ${
+                isActive
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-300 hover:bg-gray-800 hover:text-white'
               }`}
             >
               <item.icon className="h-5 w-5" />
               <span className="font-medium">{item.label}</span>
-            </button>
+            </NavLink>
           ))}
         </nav>
       </div>

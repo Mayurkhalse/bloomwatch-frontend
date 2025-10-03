@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navigation/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
 import BloomMap from './components/Map/BloomMap';
@@ -17,7 +18,6 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // UI state
-  const [activeTab, setActiveTab] = useState('map');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   
@@ -38,24 +38,22 @@ function App() {
     isEditing: false,
   });
   
-  // Time slider state
-  const [currentDate, setCurrentDate] = useState('2024-01-15');
-  const [isPlaying, setIsPlaying] = useState(false);
+  // Time slider state (manual only)
+  const initialDate = useMemo(() => {
+    const dates = mockBloomEvents.map(b => b.date).sort();
+    return dates[0] ?? '2024-01-01';
+  }, []);
+  const [currentDate, setCurrentDate] = useState(initialDate);
+  const availableDates = useMemo(() => {
+    const unique = Array.from(new Set(blooms.map(b => b.date)));
+    unique.sort();
+    return unique;
+  }, [blooms]);
   
   // Notification state
   const [notifications, setNotifications] = useState(mockNotifications);
 
-  // Auto-play time slider
-  useEffect(() => {
-    if (isPlaying) {
-      const interval = setInterval(() => {
-        // This would update the current date and filter blooms
-        // For now, just toggle playing state after 5 seconds
-        setTimeout(() => setIsPlaying(false), 5000);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [isPlaying]);
+  // Removed autoplay logic for manual-only slider
 
   const handleLogin = (email: string, _password: string) => {
     // Simulate login - in real app this would call an API
@@ -142,9 +140,10 @@ function App() {
     });
   };
 
-  // Filter blooms by user region
+  // Filter blooms by selected date and user region
+  const bloomsOnDate = useMemo(() => blooms.filter(b => b.date === currentDate), [blooms, currentDate]);
   const filteredBlooms = userRegion.bounds 
-    ? blooms.filter(bloom => {
+    ? bloomsOnDate.filter(bloom => {
         const [lat, lng] = bloom.coordinates;
         const [[minLat, minLng], [maxLat, maxLng]] = userRegion.bounds!;
         return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
@@ -181,8 +180,6 @@ function App() {
 
       <Sidebar
         isOpen={isSidebarOpen}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
       />
 
       <NotificationPanel
@@ -196,122 +193,143 @@ function App() {
       <main className={`transition-all duration-300 ${
         isSidebarOpen ? 'ml-64' : 'ml-0'
       } ${isNotificationPanelOpen ? 'mr-96' : 'mr-0'} mt-16`}>
-        {activeTab === 'map' && (
-          <div className="h-screen flex flex-col">
-            <div className="flex-1 relative">
-              <BloomMap
-                blooms={filteredBlooms}
-                onShowBloomDetails={handleShowBloomDetails}
-                userRegion={userRegion}
-                onRegionDrawn={handleRegionDrawn}
-                onStopDrawing={handleStopDrawing}
-              />
-              
-              {/* Region Controls Overlay */}
-              <div className="absolute top-4 right-4 z-20">
-                <div className="bg-gray-800/90 backdrop-blur-md p-3 rounded-lg shadow-lg">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={handleStartDrawing}
-                      className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                        userRegion.isDrawing
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      {userRegion.isDrawing ? 'Drawing...' : 'Draw Region'}
-                    </button>
-                    {userRegion.isDrawing && (
-                      <button
-                        onClick={handleStopDrawing}
-                        className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    {userRegion.bounds && (
-                      <>
+        <Routes>
+          <Route path="/" element={<Navigate to="/map" replace />} />
+          <Route
+            path="/map"
+            element={(
+              <div className="h-screen flex flex-col">
+                <div className="flex-1 relative">
+                  <BloomMap
+                    blooms={filteredBlooms}
+                    onShowBloomDetails={handleShowBloomDetails}
+                    userRegion={userRegion}
+                    onRegionDrawn={handleRegionDrawn}
+                    onStopDrawing={handleStopDrawing}
+                  />
+                  <div className="absolute top-4 right-4 z-20">
+                    <div className="bg-gray-800/90 backdrop-blur-md p-3 rounded-lg shadow-lg">
+                      <div className="flex space-x-2">
                         <button
-                          onClick={handleEditRegion}
+                          onClick={handleStartDrawing}
                           className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                            userRegion.isEditing
-                              ? 'bg-yellow-600 text-white'
+                            userRegion.isDrawing
+                              ? 'bg-blue-600 text-white'
                               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                         >
-                          {userRegion.isEditing ? 'Editing...' : 'Edit'}
+                          {userRegion.isDrawing ? 'Drawing...' : 'Draw Region'}
                         </button>
-                        <button
-                          onClick={handleClearRegion}
-                          className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                        >
-                          Clear
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  {userRegion.isDrawing && (
-                    <p className="text-xs text-blue-400 mt-2">
-                      Click and drag to draw a rectangle on the map<br />
-                      Press Escape to cancel
-                    </p>
-                  )}
-                  {!userRegion.bounds && !userRegion.isDrawing && (
-                    <p className="text-xs text-gray-400 mt-2">
-                      Draw a region to view bloom data
-                    </p>
-                  )}
-                  {userRegion.bounds && !userRegion.isDrawing && (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs text-green-400">
-                        Region active - {filteredBlooms.length} blooms visible
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Bounds: {userRegion.bounds[0][0].toFixed(2)}, {userRegion.bounds[0][1].toFixed(2)} to {userRegion.bounds[1][0].toFixed(2)}, {userRegion.bounds[1][1].toFixed(2)}
-                      </p>
+                        {userRegion.isDrawing && (
+                          <button
+                            onClick={handleStopDrawing}
+                            className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        {userRegion.bounds && (
+                          <>
+                            <button
+                              onClick={handleEditRegion}
+                              className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                                userRegion.isEditing
+                                  ? 'bg-yellow-600 text-white'
+                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              }`}
+                            >
+                              {userRegion.isEditing ? 'Editing...' : 'Edit'}
+                            </button>
+                            <button
+                              onClick={handleClearRegion}
+                              className="px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                            >
+                              Clear
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {userRegion.isDrawing && (
+                        <p className="text-xs text-blue-400 mt-2">
+                          Click and drag to draw a rectangle on the map<br />
+                          Press Escape to cancel
+                        </p>
+                      )}
+                      {!userRegion.bounds && !userRegion.isDrawing && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          Draw a region to view bloom data
+                        </p>
+                      )}
+                      {userRegion.bounds && !userRegion.isDrawing && (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-green-400">
+                            Region active - {filteredBlooms.length} blooms visible
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Bounds: {userRegion.bounds[0][0].toFixed(2)}, {userRegion.bounds[0][1].toFixed(2)} to {userRegion.bounds[1][0].toFixed(2)}, {userRegion.bounds[1][1].toFixed(2)}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+                  
+                    <TimeSlider
+                      dates={availableDates}
+                      currentDate={currentDate}
+                      onDateChange={setCurrentDate}
+                    />
+                  </div>
                 </div>
               </div>
-              
-              {/* Time Slider Overlay */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-                <TimeSlider
-                  currentDate={currentDate}
-                  minDate="2024-01-01"
-                  maxDate="2024-02-28"
-                  isPlaying={isPlaying}
-                  onDateChange={setCurrentDate}
-                  onTogglePlay={() => setIsPlaying(!isPlaying)}
-                  onStepBackward={() => console.log('Step backward')}
-                  onStepForward={() => console.log('Step forward')}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            blooms={filteredBlooms}
-            regions={mockRegions}
-            selectedRegions={selectedRegions}
-            onRegionToggle={handleRegionToggle}
+            )}
           />
-        )}
-
-        {(activeTab === 'reports' || activeTab === 'exports' || activeTab === 'settings') && (
-          <div className="p-6">
-            <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
-              <h2 className="text-2xl font-bold text-white mb-4">
-                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-              </h2>
-              <p className="text-gray-400">
-                This section is ready for implementation with backend integration.
-              </p>
-            </div>
-          </div>
-        )}
+          <Route
+            path="/dashboard"
+            element={(
+              <Dashboard
+                blooms={filteredBlooms}
+                regions={mockRegions}
+                selectedRegions={selectedRegions}
+                onRegionToggle={handleRegionToggle}
+              />
+            )}
+          />
+          <Route
+            path="/reports"
+            element={(
+              <div className="p-6">
+                <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
+                  <h2 className="text-2xl font-bold text-white mb-4">Reports</h2>
+                  <p className="text-gray-400">This section is ready for implementation with backend integration.</p>
+                </div>
+              </div>
+            )}
+          />
+          <Route
+            path="/exports"
+            element={(
+              <div className="p-6">
+                <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
+                  <h2 className="text-2xl font-bold text-white mb-4">Exports</h2>
+                  <p className="text-gray-400">This section is ready for implementation with backend integration.</p>
+                </div>
+              </div>
+            )}
+          />
+          <Route
+            path="/settings"
+            element={(
+              <div className="p-6">
+                <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
+                  <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
+                  <p className="text-gray-400">This section is ready for implementation with backend integration.</p>
+                </div>
+              </div>
+            )}
+          />
+          <Route path="*" element={<Navigate to="/map" replace />} />
+        </Routes>
       </main>
 
       <BloomPopup

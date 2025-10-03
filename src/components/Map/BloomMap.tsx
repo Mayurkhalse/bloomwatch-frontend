@@ -115,10 +115,17 @@ const BloomMap: React.FC<BloomMapProps> = ({
     }
   }, [userRegion.isDrawing, onStopDrawing]);
   return (
-    <div className="h-full w-full rounded-lg overflow-hidden">
+    <div className="h-[600px] w-full rounded-lg overflow-hidden">
       <MapContainer
         center={MAP_CENTER}
         zoom={MAP_ZOOM}
+        minZoom={3}   // prevent zooming out too far
+
+  maxBounds={[
+    [-90, -180], // Southwest corner of the world
+    [90, 180]    // Northeast corner of the world
+  ]}
+  maxBoundsViscosity={1.0} 
         style={{ height: '100%', width: '100%' }}
         className={`z-10 ${userRegion.isDrawing ? 'cursor-crosshair' : ''}`}
         dragging={!userRegion.isDrawing}
@@ -129,9 +136,11 @@ const BloomMap: React.FC<BloomMapProps> = ({
         keyboard={!userRegion.isDrawing}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-        />
+  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+  attribution='Tiles © Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+  noWrap={true}
+/>
+
         
         {/* Region drawing handler */}
         <MapDrawingHandler

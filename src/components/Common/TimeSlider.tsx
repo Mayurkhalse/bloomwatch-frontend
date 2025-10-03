@@ -1,69 +1,74 @@
-import React from 'react';
-import { Calendar, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Calendar, SkipBack, SkipForward } from 'lucide-react';
 
 interface TimeSliderProps {
-  currentDate: string;
-  minDate: string;
-  maxDate: string;
-  isPlaying: boolean;
+  dates: string[]; // ISO yyyy-mm-dd
+  currentDate: string; // ISO yyyy-mm-dd
   onDateChange: (date: string) => void;
-  onTogglePlay: () => void;
-  onStepBackward: () => void;
-  onStepForward: () => void;
 }
 
-const TimeSlider: React.FC<TimeSliderProps> = ({
-  currentDate,
-  minDate,
-  maxDate,
-  isPlaying,
-  onDateChange,
-  onTogglePlay,
-  onStepBackward,
-  onStepForward,
-}) => {
+function formatDisplayDate(isoDate: string): string {
+  // Expecting yyyy-mm-dd, output dd-mm-yyyy
+  const [y, m, d] = isoDate.split('-');
+  if (!y || !m || !d) return isoDate;
+  return `${d}-${m}-${y}`;
+}
+
+const TimeSlider: React.FC<TimeSliderProps> = ({ dates, currentDate, onDateChange }) => {
+  const index = useMemo(() => Math.max(0, dates.indexOf(currentDate)), [dates, currentDate]);
+  const minLabel = dates.length > 0 ? formatDisplayDate(dates[0]) : '';
+  const maxLabel = dates.length > 0 ? formatDisplayDate(dates[dates.length - 1]) : '';
+
+  const stepBackward = () => {
+    if (dates.length === 0) return;
+    const nextIndex = Math.max(0, index - 1);
+    onDateChange(dates[nextIndex]);
+  };
+
+  const stepForward = () => {
+    if (dates.length === 0) return;
+    const nextIndex = Math.min(dates.length - 1, index + 1);
+    onDateChange(dates[nextIndex]);
+  };
+
   return (
     <div className="bg-gray-800/90 backdrop-blur-md p-4 rounded-lg shadow-lg">
       <div className="flex items-center space-x-4">
         <Calendar className="h-5 w-5 text-gray-400" />
         <div className="flex items-center space-x-2">
           <button
-            onClick={onStepBackward}
+            onClick={stepBackward}
             className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Previous date"
           >
             <SkipBack className="h-5 w-5" />
           </button>
           <button
-            onClick={onTogglePlay}
-            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition-colors"
-          >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          </button>
-          <button
-            onClick={onStepForward}
+            onClick={stepForward}
             className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Next date"
           >
             <SkipForward className="h-5 w-5" />
           </button>
         </div>
-        
         <div className="flex-1">
           <input
             type="range"
-            min="0"
-            max="100"
-            value={50} // This would be calculated based on current date position
+            min={0}
+            max={Math.max(0, dates.length - 1)}
+            value={index}
             onChange={(e) => {
-              // Convert slider value back to date
-              const percentage = parseInt(e.target.value);
-              // Implementation would calculate date based on percentage
+              const newIndex = Number(e.target.value);
+              if (!Number.isFinite(newIndex)) return;
+              const clamped = Math.min(Math.max(newIndex, 0), Math.max(0, dates.length - 1));
+              onDateChange(dates[clamped]);
             }}
             className="w-full h-2 bg-gray-600 rounded-lg appearance-none slider"
           />
           <div className="flex justify-between text-xs text-gray-400 mt-1">
-            <span>{minDate}</span>
-            <span className="text-white font-medium">{currentDate}</span>
-            <span>{maxDate}</span>
+            <span>{minLabel}</span>
+            <span className="text-white font-medium">{formatDisplayDate(currentDate)}</span>
+            <span>{maxLabel}</span>
           </div>
         </div>
       </div>
