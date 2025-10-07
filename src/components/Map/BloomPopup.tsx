@@ -10,6 +10,13 @@ interface BloomPopupProps {
   onClose: () => void;
 }
 
+export interface ChartData {
+  date: string;
+  severity: number; // make optional
+  evi?: number;
+  ndvi?: number;
+}
+
 const BloomPopup: React.FC<BloomPopupProps> = ({ bloom, isOpen, onClose }) => {
   if (!bloom || !isOpen) return null;
 
@@ -17,6 +24,31 @@ const BloomPopup: React.FC<BloomPopupProps> = ({ bloom, isOpen, onClose }) => {
     ...bloom.historicalTrends,
     ...bloom.predictedTrends,
   ];
+  const combinedDataForChart = [
+    ...bloom.historicalTrends.map(item => ({
+      date: item.date,
+      severity: item.severity,
+      evi: item.evi,
+      ndvi: item.ndvi
+    })),
+    ...bloom.predictedTrends.map(item => ({
+      date: item.date,
+      severity: item.severity,
+      evi: item.evi,
+      ndvi: item.ndvi
+    }))
+  ];
+  
+  // Get latest historical record
+const latestHistorical = bloom.historicalTrends[bloom.historicalTrends.length - 1];
+
+// Get latest predicted record (optional)
+const latestPredicted = bloom.predictedTrends[bloom.predictedTrends.length - 1];
+
+// Access EVI and NDVI
+const evi = latestPredicted?.evi ?? latestHistorical?.evi;
+const ndvi = latestPredicted?.ndvi ?? latestHistorical?.ndvi;
+console.log(combinedDataForChart);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -54,35 +86,28 @@ const BloomPopup: React.FC<BloomPopupProps> = ({ bloom, isOpen, onClose }) => {
                   </div>
                   <div className="flex items-center space-x-3">
                     <Droplets className="h-5 w-5 text-cyan-400" />
-                    <span className="text-gray-300">{bloom.chlorophyll} mg/m³ Chlorophyll</span>
+                    <span className="text-gray-300">{evi} EVI</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Droplets className="h-5 w-5 text-cyan-400" />
+                    <span className="text-gray-300">{ndvi} NDVI</span>
                   </div>
                 </div>
               </div>
 
-              {/* Statistics */}
-              <div className="bg-gray-700 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-white mb-3">Impact Statistics</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-400">{bloom.affectedArea}</p>
-                    <p className="text-sm text-gray-400">km² Affected</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-400">{bloom.chlorophyll}</p>
-                    <p className="text-sm text-gray-400">mg/m³ Chlorophyll</p>
-                  </div>
-                </div>
-              </div>
+              
             </div>
+            
 
             {/* Charts */}
-            <div className="space-y-4">
+              <div className="space-y-4">
               <Charts
-                data={combinedData}
-                title="Trend Analysis"
-                type="line"
-              />
-            </div>
+    data={combinedDataForChart}
+    title="Trend Analysis"
+    type="line" // or "area"
+    keys={['severity', 'evi', 'ndvi']} // <-- dynamically plot these keys
+  />
+              </div>
           </div>
 
           {/* Historical and Predicted Trends */}
@@ -96,7 +121,8 @@ const BloomPopup: React.FC<BloomPopupProps> = ({ bloom, isOpen, onClose }) => {
                       <span className="text-gray-300 text-sm">{formatDate(trend.date)}</span>
                       <div className="flex space-x-4">
                         <span className="text-blue-400 text-sm">S: {trend.severity}</span>
-                        <span className="text-green-400 text-sm">C: {trend.chlorophyll}</span>
+                        <span className="text-cyan-400 text-sm">E: {trend.evi}</span>
+                        <span className="text-cyan-400 text-sm">N: {trend.ndvi}</span>
                       </div>
                     </div>
                   ))}
@@ -111,7 +137,8 @@ const BloomPopup: React.FC<BloomPopupProps> = ({ bloom, isOpen, onClose }) => {
                       <span className="text-gray-300 text-sm">{formatDate(trend.date)}</span>
                       <div className="flex space-x-4">
                         <span className="text-blue-400 text-sm">S: {trend.severity}</span>
-                        <span className="text-green-400 text-sm">C: {trend.chlorophyll}</span>
+                        <span className="text-cyan-400 text-sm">E: {trend.evi}</span>
+                        <span className="text-cyan-400 text-sm">N: {trend.ndvi}</span>
                       </div>
                     </div>
                   ))}

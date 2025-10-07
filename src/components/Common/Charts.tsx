@@ -1,19 +1,33 @@
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from 'recharts';
 
 interface ChartData {
   date: string;
   severity: number;
-  chlorophyll: number;
+  evi?: number;
+  ndvi?: number;
 }
 
 interface ChartsProps {
   data: ChartData[];
   title: string;
   type?: 'line' | 'area';
+  keys?: (keyof ChartData)[];
 }
 
-const Charts: React.FC<ChartsProps> = ({ data, title, type = 'line' }) => {
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444']; // Colors for different keys
+
+const Charts: React.FC<ChartsProps> = ({ data, title, type = 'line', keys = ['severity', 'chlorophyll'] }) => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -41,22 +55,17 @@ const Charts: React.FC<ChartsProps> = ({ data, title, type = 'line' }) => {
               <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
               <YAxis stroke="#9CA3AF" fontSize={12} />
               <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="severity"
-                stackId="1"
-                stroke="#3B82F6"
-                fill="#3B82F6"
-                fillOpacity={0.6}
-              />
-              <Area
-                type="monotone"
-                dataKey="chlorophyll"
-                stackId="1"
-                stroke="#10B981"
-                fill="#10B981"
-                fillOpacity={0.6}
-              />
+              {keys.map((key, index) => (
+                <Area
+                  key={key as string}
+                  type="monotone"
+                  dataKey={key}
+                  stackId="1"
+                  stroke={COLORS[index % COLORS.length]}
+                  fill={COLORS[index % COLORS.length]}
+                  fillOpacity={0.6}
+                />
+              ))}
             </AreaChart>
           ) : (
             <LineChart data={data}>
@@ -64,20 +73,16 @@ const Charts: React.FC<ChartsProps> = ({ data, title, type = 'line' }) => {
               <XAxis dataKey="date" stroke="#9CA3AF" fontSize={12} />
               <YAxis stroke="#9CA3AF" fontSize={12} />
               <Tooltip content={<CustomTooltip />} />
-              <Line
-                type="monotone"
-                dataKey="severity"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                dot={{ fill: '#3B82F6', strokeWidth: 2 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="chlorophyll"
-                stroke="#10B981"
-                strokeWidth={2}
-                dot={{ fill: '#10B981', strokeWidth: 2 }}
-              />
+              {keys.map((key, index) => (
+                <Line
+                  key={key as string}
+                  type="monotone"
+                  dataKey={key}
+                  stroke={COLORS[index % COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ fill: COLORS[index % COLORS.length], strokeWidth: 2 }}
+                />
+              ))}
             </LineChart>
           )}
         </ResponsiveContainer>

@@ -44,21 +44,9 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ data, filename }) => {
         <span>CSV</span>
       </button>
       
-      <button
-        onClick={handleExportPDF}
-        className="flex items-center space-x-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
-      >
-        <FileText className="h-4 w-4" />
-        <span>PDF</span>
-      </button>
       
-      <button
-        onClick={handleExportImage}
-        className="flex items-center space-x-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors"
-      >
-        <FileImage className="h-4 w-4" />
-        <span>Image</span>
-      </button>
+      
+      
     </div>
   );
 };

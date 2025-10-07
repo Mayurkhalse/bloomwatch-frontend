@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navigation/Navbar';
 import Sidebar from './components/Navigation/Sidebar';
@@ -6,27 +6,26 @@ import BloomMap from './components/Map/BloomMap';
 import BloomPopup from './components/Map/BloomPopup';
 import Dashboard from './components/Dashboard/Dashboard';
 import TimeSlider from './components/Common/TimeSlider';
-import NotificationPanel from './components/Common/NotificationPanel';
 import LoginForm from './components/Auth/LoginForm';
 import SignupForm from './components/Auth/SignupForm';
-import { mockBloomEvents, mockRegions, mockNotifications, BloomEvent } from './data/mockData';
+import ChatbotPage from './components/Chatbot/ChatbotPage';
+import { mockBloomEvents, mockRegions, BloomEvent } from './data/mockData';
 
 function App() {
   // Authentication state
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [showLogin, setShowLogin] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
+  const [regionData, setRegionData] = useState([]);
   // UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
-  
+
   // Map and bloom state
   const [selectedBloom, setSelectedBloom] = useState<BloomEvent | null>(null);
   const [isBloomPopupOpen, setIsBloomPopupOpen] = useState(false);
-  const [blooms] = useState(mockBloomEvents);
+  const [blooms, setBlooms] = useState<BloomEvent[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>(['1']);
-  
+
   // Region selection state
   const [userRegion, setUserRegion] = useState<{
     bounds: [[number, number], [number, number]] | null;
@@ -37,8 +36,8 @@ function App() {
     isDrawing: false,
     isEditing: false,
   });
-  
-  // Time slider state (manual only)
+
+  // Time slider state
   const initialDate = useMemo(() => {
     const dates = mockBloomEvents.map(b => b.date).sort();
     return dates[0] ?? '2024-01-01';
@@ -49,59 +48,87 @@ function App() {
     unique.sort();
     return unique;
   }, [blooms]);
-  
-  // Notification state
-  const [notifications, setNotifications] = useState(mockNotifications);
 
-  // Removed autoplay logic for manual-only slider
+  // Authentication handlers
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("email", email);
+      formData.append("password", password);
 
-  const handleLogin = (email: string, _password: string) => {
-    // Simulate login - in real app this would call an API
-    setUser({ name: 'John Doe', email });
-    setIsAuthenticated(true);
+      const response = await fetch("https://bloomwatch-backend.onrender.com/login", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setUser({ name: data.profile?.username || "User", email });
+        setIsAuthenticated(true);
+
+        localStorage.setItem("uid", data.uid || "");
+        localStorage.setItem("name", data.profile?.username || "");
+        localStorage.setItem("email", email);
+        localStorage.setItem("token", data.token || "");
+      } else {
+        alert(data.error || "Login failed");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      alert("An error occurred while logging in.");
+    }
   };
 
-  const handleSignup = (name: string, email: string, _password: string) => {
-    // Simulate signup - in real app this would call an API
-    setUser({ name, email });
-    setIsAuthenticated(true);
+  const handleSignup = async (name: string, email: string, password: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("username", name);
+      formData.append("email", email);
+      formData.append("password", password);
+
+      const response = await fetch("https://bloomwatch-backend.onrender.com/addUser", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setUser({ name, email });
+        setIsAuthenticated(true);
+
+        localStorage.setItem("uid", data.uid || "");
+      } else {
+        alert(data.error || "Signup failed");
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      alert("An error occurred while signing up.");
+    }
   };
 
   const handleLogout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.clear();
   };
 
+  // Bloom handlers
   const handleShowBloomDetails = (bloom: BloomEvent) => {
     setSelectedBloom(bloom);
     setIsBloomPopupOpen(true);
   };
 
   const handleRegionToggle = (regionId: string) => {
-    setSelectedRegions(prev => 
+    setSelectedRegions(prev =>
       prev.includes(regionId)
         ? prev.filter(id => id !== regionId)
         : [...prev, regionId]
     );
   };
 
-  const handleMarkNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
-  };
-
-  const handleMarkAllNotificationsAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, read: true }))
-    );
-  };
-
-  // Region management functions
+  // Region drawing handlers
   const handleStartDrawing = () => {
     setUserRegion(prev => ({
       ...prev,
@@ -140,9 +167,50 @@ function App() {
     });
   };
 
-  // Filter blooms by selected date and user region
-  const bloomsOnDate = useMemo(() => blooms.filter(b => b.date === currentDate), [blooms, currentDate]);
-  const filteredBlooms = userRegion.bounds 
+  const handleSaveRegion = async () => {
+    if (!userRegion.bounds) return;
+
+    const uid = localStorage.getItem("uid");
+    if (!uid) {
+      alert("User not logged in");
+      return;
+    }
+
+    const [[lat1, lng1], [lat2, lng2]] = userRegion.bounds;
+
+    const formData = new FormData();
+    formData.append("uid", uid);
+    formData.append("lat_1", lat1.toString());
+    formData.append("lat_2", lat2.toString());
+    formData.append("lan_1", lng1.toString());
+    formData.append("lan_2", lng2.toString());
+
+    try {
+      const response = await fetch("https://bloomwatch-backend.onrender.com/addRegion", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(data.message || "Region added successfully!");
+      } else {
+        alert(data.error || "Failed to add region");
+      }
+    } catch (err) {
+      console.error("Add region error:", err);
+      alert("An error occurred while adding the region");
+    }
+  };
+
+  // Filter blooms by current date and userRegion
+  const bloomsOnDate = useMemo(
+    () => blooms.filter(b => b.date === currentDate),
+    [blooms, currentDate]
+  );
+
+  const filteredBlooms = userRegion.bounds
     ? bloomsOnDate.filter(bloom => {
         const [lat, lng] = bloom.coordinates;
         const [[minLat, minLng], [maxLat, maxLng]] = userRegion.bounds!;
@@ -150,7 +218,63 @@ function App() {
       })
     : [];
 
-  // Show authentication forms if not authenticated
+  // Get UID from localStorage
+  const uid = localStorage.getItem("uid") || '';
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const fetchBloomData = async () => {
+      try {
+        const response = await fetch(`https://bloomwatch-backend.onrender.com/getData?uid=${uid}`);
+        const data = await response.json();
+
+        if (response.error) {
+          console.error("Error fetching bloom data:", response.error);
+          return;
+        }
+
+        setRegionData  (data.region_data || {});
+
+        console.log("Region data",regionData)
+        
+        const bloomsArray: BloomEvent[] = [];
+for (const latKey in regionData) {
+  for (const lonKey in regionData[latKey]) {
+    const bloom = regionData[latKey][lonKey];
+    bloomsArray.push({
+      id: bloom["id"] || `${latKey}_${lonKey}`,
+      coordinates: [
+        parseFloat(latKey.replace('_', '.')),
+        parseFloat(lonKey.replace('_', '.'))
+      ],
+      severity: bloom["severity"] || 'low',
+      chlorophyll: bloom["chlorophyll"] || 0,
+      affectedArea: bloom["affectedArea"] || 0,
+      date: bloom["date"] || '2024-01-01',
+      historicalTrends: bloom["historicalTrends"] || [],
+      predictedTrends: bloom["predictedTrends"] || [] // ✅ Add this line
+    });
+  }
+}
+
+      console.log("bloomsArray : ",bloomsArray);
+
+        setBlooms(bloomsArray);
+        if (bloomsArray.length > 0) {
+          const sortedDates = bloomsArray.map(b => b.date).sort();
+          setCurrentDate(sortedDates[0]);
+        }
+
+      } catch (err) {
+        console.error("Failed to fetch bloom data:", err);
+      }
+    };
+
+    fetchBloomData();
+  }, [uid]);
+  
+  // Show auth forms if not logged in
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center">
@@ -168,36 +292,24 @@ function App() {
       </div>
     );
   }
+  console.log("Region data ",regionData);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
       <Navbar
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        onToggleNotifications={() => setIsNotificationPanelOpen(!isNotificationPanelOpen)}
         onLogout={handleLogout}
         user={user}
       />
 
-      <Sidebar
-        isOpen={isSidebarOpen}
-      />
+      <Sidebar isOpen={isSidebarOpen} />
 
-      <NotificationPanel
-        notifications={notifications}
-        isOpen={isNotificationPanelOpen}
-        onClose={() => setIsNotificationPanelOpen(false)}
-        onMarkAsRead={handleMarkNotificationAsRead}
-        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
-      />
-
-      <main className={`transition-all duration-300 ${
-        isSidebarOpen ? 'ml-64' : 'ml-0'
-      } ${isNotificationPanelOpen ? 'mr-96' : 'mr-0'} mt-16`}>
+      <main className={`transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'} mt-16`}>
         <Routes>
           <Route path="/" element={<Navigate to="/map" replace />} />
           <Route
             path="/map"
-            element={(
+            element={
               <div className="h-screen flex flex-col">
                 <div className="flex-1 relative">
                   <BloomMap
@@ -206,7 +318,9 @@ function App() {
                     userRegion={userRegion}
                     onRegionDrawn={handleRegionDrawn}
                     onStopDrawing={handleStopDrawing}
+                    uid={uid} // Pass UID for fetching saved region
                   />
+                  {/* Region control panel */}
                   <div className="absolute top-4 right-4 z-20">
                     <div className="bg-gray-800/90 backdrop-blur-md p-3 rounded-lg shadow-lg">
                       <div className="flex space-x-2">
@@ -228,7 +342,7 @@ function App() {
                             Cancel
                           </button>
                         )}
-                        {userRegion.bounds && (
+                        {userRegion.bounds && !userRegion.isDrawing && (
                           <>
                             <button
                               onClick={handleEditRegion}
@@ -246,6 +360,12 @@ function App() {
                             >
                               Clear
                             </button>
+                            <button
+                              onClick={handleSaveRegion}
+                              className="px-3 py-2 text-sm rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                            >
+                              Save Region
+                            </button>
                           </>
                         )}
                       </div>
@@ -262,9 +382,7 @@ function App() {
                       )}
                       {userRegion.bounds && !userRegion.isDrawing && (
                         <div className="mt-2 space-y-1">
-                          <p className="text-xs text-green-400">
-                            Region active - {filteredBlooms.length} blooms visible
-                          </p>
+                          
                           <p className="text-xs text-gray-500">
                             Bounds: {userRegion.bounds[0][0].toFixed(2)}, {userRegion.bounds[0][1].toFixed(2)} to {userRegion.bounds[1][0].toFixed(2)}, {userRegion.bounds[1][1].toFixed(2)}
                           </p>
@@ -272,63 +390,30 @@ function App() {
                       )}
                     </div>
                   </div>
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-                  
+                  {/*<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
                     <TimeSlider
                       dates={availableDates}
                       currentDate={currentDate}
                       onDateChange={setCurrentDate}
                     />
-                  </div>
+                  </div>*/}
                 </div>
               </div>
-            )}
+            }
           />
           <Route
             path="/dashboard"
-            element={(
+            element={
               <Dashboard
-                blooms={filteredBlooms}
+                blooms={regionData}
                 regions={mockRegions}
                 selectedRegions={selectedRegions}
                 onRegionToggle={handleRegionToggle}
               />
-            )}
-          />
-          <Route
-            path="/reports"
-            element={(
-              <div className="p-6">
-                <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
-                  <h2 className="text-2xl font-bold text-white mb-4">Reports</h2>
-                  <p className="text-gray-400">This section is ready for implementation with backend integration.</p>
-                </div>
-              </div>
-            )}
-          />
-          <Route
-            path="/exports"
-            element={(
-              <div className="p-6">
-                <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
-                  <h2 className="text-2xl font-bold text-white mb-4">Exports</h2>
-                  <p className="text-gray-400">This section is ready for implementation with backend integration.</p>
-                </div>
-              </div>
-            )}
-          />
-          <Route
-            path="/settings"
-            element={(
-              <div className="p-6">
-                <div className="bg-gray-800 p-12 rounded-lg shadow-lg text-center">
-                  <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
-                  <p className="text-gray-400">This section is ready for implementation with backend integration.</p>
-                </div>
-              </div>
-            )}
+            }
           />
           <Route path="*" element={<Navigate to="/map" replace />} />
+          <Route path="/chatbot" element={<ChatbotPage bloom={regionData} />} />
         </Routes>
       </main>
 

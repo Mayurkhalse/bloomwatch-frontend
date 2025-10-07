@@ -1,14 +1,13 @@
 import React from 'react';
-import { Menu, Bell, User, LogOut, Settings } from 'lucide-react';
+import { Menu,  User, LogOut, Settings } from 'lucide-react';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
-  onToggleNotifications: () => void;
   onLogout: () => void;
   user: { name: string; email: string } | null;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onToggleNotifications, onLogout, user }) => {
+const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar,  onLogout, user }) => {
   return (
     <nav className="bg-gray-900/95 backdrop-blur-md border-b border-gray-700 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -29,13 +28,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onToggleNotifications,
 
         {user && (
           <div className="flex items-center space-x-4">
-            <button
-              onClick={onToggleNotifications}
-              className="relative text-gray-400 hover:text-white transition-colors"
-            >
-              <Bell className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-            </button>
+            
             
             <div className="flex items-center space-x-3">
               <div className="text-right">
